@@ -1,4 +1,8 @@
+#executar localmente =  pip install -r requirements.txt
+
+
 pandas
 seaborn
 matplotlib
 streamlit
+plotly
