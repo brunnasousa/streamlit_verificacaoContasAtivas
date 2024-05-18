@@ -1,13 +1,14 @@
-## criacao de email institucional 
-
 import pandas as pd
 import unicodedata
 import streamlit as st
-
+from io import BytesIO
+#cod
 def remover_acentos(texto):
+    """Remove acentos do texto utilizando a normalização Unicode."""
     return unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('ascii')
 
 def gerar_email(partes, emails_gerados, dominio):
+    """Gera um endereço de email único baseado nas partes do nome fornecido e no domínio."""
     excluidas = ['de', 'dos', 'da', 'do', 'com']
     partes_email = [remover_acentos(parte).lower() for parte in partes if parte.lower() not in excluidas and parte.isalpha()]
     email = f"{partes_email[0]}.{partes_email[-1]}@{dominio}"
@@ -23,10 +24,18 @@ def gerar_email(partes, emails_gerados, dominio):
         sufixo += 1
     return f"{email_base}{sufixo}@{dominio}"
 
+def convert_df_to_excel(df):
+    """Converts a DataFrame to an Excel file stored in a BytesIO stream."""
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sheet1')
+        writer.close()
+    output.seek(0)
+    return output.getvalue()
+
 def main():
     st.title('Criação de E-mails Institucionais')
 
-    # Carregar arquivos
     uploaded_file_base = st.file_uploader("Carregar arquivo base (base.xlsx):", type='xlsx')
     uploaded_file_teste = st.file_uploader("Carregar arquivo de teste (teste.xlsx):", type='xlsx')
 
@@ -54,7 +63,17 @@ def main():
             df_teste = pd.read_excel(uploaded_file_teste)
             
             # Aqui você pode continuar com o processamento dos dados
-            st.write("Dados processados com sucesso.")
+            df_resultado = df_teste  # Substitua esta linha pela sua lógica de processamento real
+            
+            if not df_resultado.empty:
+                excel_data = convert_df_to_excel(df_resultado)
+                st.success("Dados processados com sucesso.")
+                st.download_button(label="📥 Download Excel",
+                                   data=excel_data,
+                                   file_name="resultados_emails.xlsx",
+                                   mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            else:
+                st.error("DataFrame resultante está vazio, não há dados para exportar.")
         else:
             st.error("Por favor, carregue ambos os arquivos antes de processar.")
 
