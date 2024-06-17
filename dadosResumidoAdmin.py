@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from io import BytesIO
-import plotly.graph_objects as go
 
 def process_data(df_base):
+    df_base['First Name [Required]'] = df_base['First Name [Required]'].astype(str)
+    df_base['Last Name [Required]'] = df_base['Last Name [Required]'].astype(str)
     df_base['Full Name'] = df_base['First Name [Required]'] + ' ' + df_base['Last Name [Required]']
     df_base['Status'] = df_base['Last Sign In [READ ONLY]'].apply(lambda x: 'DESATIVADO' if x == 'Never logged in' else 'ATIVO')
     columns_to_include = ['Full Name', 'Email Address [Required]', 'Status']
@@ -12,7 +13,12 @@ def process_data(df_base):
         columns_to_include.append('Org Unit Path [Required]')
     return df_base[columns_to_include]
 
-def display_statistics(df_base):
+def display_statistics(df_base, selected_emails=None, selected_org_paths=None):
+    if selected_emails is not None:
+        df_base = df_base[df_base['Email Address [Required]'].apply(lambda x: any(email == x.split('@')[1] for email in selected_emails))]
+    if selected_org_paths is not None:
+        df_base = df_base[df_base['Org Unit Path [Required]'].isin(selected_org_paths)]
+
     total_count = df_base.shape[0]
     status_counts = df_base['Status'].value_counts()
     status_percentage = (status_counts / total_count) * 100
@@ -37,8 +43,6 @@ def display_statistics(df_base):
         fig_perc = px.pie(status_summary, values='percentagem', names='Status', title='Porcentagem por Status')
         st.plotly_chart(fig_perc, use_container_width=True)
 
-
-    ##### 2 
     if 'Org Unit Path [Required]' in df_base.columns:
         org_unit_counts = df_base['Org Unit Path [Required]'].value_counts()
         org_unit_percentage = (org_unit_counts / total_count) * 100
@@ -56,7 +60,6 @@ def display_statistics(df_base):
         with col2:
             fig_perc_path = px.pie(org_summary[org_summary['Org Unit Path'] != 'TOTAL'], values='percentagem', names='Org Unit Path', title='Porcentagem por Org Unit Path')
             st.plotly_chart(fig_perc_path, use_container_width=True)
-
 
         org_summary_filtered = org_summary[org_summary['Org Unit Path'] != 'TOTAL']  # Filtrando 'TOTAL'
         fig_quant_path = px.bar(org_summary_filtered, x='Org Unit Path', y='qtd', title="Quantidade por Org Unit Path")
@@ -86,9 +89,6 @@ def display_statistics(df_base):
         st.subheader("3 - Contagem e Porcentagem de Status por Org Unit Path:")
         st.dataframe(all_status_by_path.style.format({'percentagem': "{:.2f}%"}))
 
-    
-
-
 def main():
     st.title('Análise de Dados Administrativos')
     uploaded_file = st.file_uploader("Upload sua base de dados:", type=['xlsx'], key="unique_key_for_admin")
@@ -96,7 +96,7 @@ def main():
     if uploaded_file is not None:
         df_base = pd.read_excel(uploaded_file)
         df_final = process_data(df_base)
-        
+
         # Download do DataFrame final para Excel
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -105,7 +105,16 @@ def main():
         output.seek(0)
         st.download_button(label="📥 Download Excel", data=output, file_name="usuarios_filtrados.xlsx", mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-        display_statistics(df_base)
-        
+        email_domains = df_base['Email Address [Required]'].apply(lambda x: x.split('@')[1]).unique().tolist()
+        org_paths = df_base['Org Unit Path [Required]'].unique().tolist()
+
+        selected_emails = st.multiselect("Selecione os domínios de e-mail:", email_domains)
+        selected_org_paths = st.multiselect("Selecione os caminhos das unidades organizacionais:", org_paths)
+
+        if selected_emails or selected_org_paths:
+            display_statistics(df_base, selected_emails, selected_org_paths)
+        else:
+            display_statistics(df_base)
+
 if __name__ == "__main__":
     main()
