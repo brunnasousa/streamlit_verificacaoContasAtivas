@@ -27,7 +27,7 @@ def main():
 
     base_data_file = st.file_uploader("Upload sua base de dados:", type=['xlsx'], key="base_data_file")
     
-    st.write("Certifique-se de que a lista de emails inclua a coluna 'Email'.")
+    st.write("Obs: Na lista de emails: tem que ter a coluna 'Email', na cedula A")
     emails_to_check_file = st.file_uploader("Upload a lista de emails para verificar: ", type=['xlsx'], key="emails_to_check_file")
     
 
